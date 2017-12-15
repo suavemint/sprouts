@@ -1,0 +1,11 @@
+<h1>USER SHOW PAGE</h1>
+
+User first name: <%= @user.first_name %>
+User last name: <%= @user.last_name %>
+User email: <%= @user.email %>
+
+Transactions:
+<% @user.transactions.each do |transaction| %>
+  Amount: <%= transaction.amount %>
+  Status: <%= transaction.status %>
+<% end %>
