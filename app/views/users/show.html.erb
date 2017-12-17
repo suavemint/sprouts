@@ -1,3 +1,51 @@
+<head>
+  <%= javascript_include_tag "https://cdn.dwolla.com/1/dwolla.js" %>
+
+  <script type="text/javascript">
+    var iav_error_count = 10;
+    var set_up_iav = function(){
+      var iavToken = '<%=j @user.token%>';
+
+      console.log(`Testing iav token retrieval in browser: ${iavToken}`);
+
+      dwolla.configure('sandbox');
+      dwolla.iav.start( iavToken, {
+        container: 'iavContainer',
+        stylesheets: [
+          'https://fonts.googleapis.com/css?family=Lato&subset=latin,latin-ext'
+          //'https://localhost:8080/iav/customStylesheets.css'
+        ],
+        microDeposits: 'false',
+      }, function(err, resp){
+        if( err && iavToken > 0 ){
+          console.log("Error: " + JSON.stringify(err)  + ": "  + JSON.stringify(resp));
+          iav_error_count--;
+          set_up_iav();
+        }
+        else {
+          if( iav_error_count >= 0 ){
+            // Success, so save funding source.
+            var funding_source = resp['_links']['funding-source']['href'];
+            console.log("Funding source retrieved is: ", funding_source);
+            // Yuck, but need to put this value on an object Ruby can grab.
+            $('#funding').val( funding_source );
+            iav_error_count = 0;
+          }
+          else {
+            console.log("Not error, but exceeded iav error count, so response = ", resp);
+          }
+        }
+      });
+    };
+
+    $(document).ready(function(){
+        $('#start').click(function(){
+          set_up_iav();
+        });
+    });
+  </script>
+</head>
+
 <h1>USER SHOW PAGE</h1>
 
 User first name: <%= @user.first_name %>
@@ -9,3 +57,22 @@ Transactions:
   Amount: <%= transaction.amount %>
   Status: <%= transaction.status %>
 <% end %>
+<br/>
+
+<!-- Once there is a response from the DwollaJS thing, we have a funding source. -->
+SET FUNDING AMOUNT FORM BELOW
+<%= form_tag( '/funding_source', method: 'post' ) do %>
+  <%= label_tag :amount, "Amount (USD)" %>
+  <%= text_field_tag :amount %>
+  <%= hidden_field_tag 'funding_source_url', 0, id: 'funding' %>
+  <%= hidden_field_tag 'user_id', @user_id, id: 'user_id' %>
+  <%= submit_tag "Invest" %>
+<% end %>
+
+DWOLLA DIV BELOW
+<div id="mainContainer">
+  <input type="button" id="start" value="Add Bank">
+</div>
+
+IAV CONTAINER DIV BELOW
+<div id="iavContainer"></div>
