@@ -2,6 +2,7 @@
   <%= javascript_include_tag "https://cdn.dwolla.com/1/dwolla.js" %>
 
   <script type="text/javascript">
+/*
     var iav_error_count = 10;
     var set_up_iav = function(){
       var iavToken = '<%=j @user.token%>';
@@ -43,6 +44,7 @@
           set_up_iav();
         });
     });
+    */
   </script>
 </head>
 
@@ -60,19 +62,139 @@ Transactions:
 <br/>
 
 <!-- Once there is a response from the DwollaJS thing, we have a funding source. -->
-SET FUNDING AMOUNT FORM BELOW
-<%= form_tag( '/funding_source', method: 'post' ) do %>
-  <%= label_tag :amount, "Amount (USD)" %>
-  <%= text_field_tag :amount %>
-  <%= hidden_field_tag 'funding_source_url', 0, id: 'funding' %>
-  <%= hidden_field_tag 'user_id', @user_id, id: 'user_id' %>
-  <%= submit_tag "Invest" %>
-<% end %>
+<form id="ach-payment-form" accept-charset="UTF-8" method="post" action='/funding_source'>
+  <!--<form id="ach-payment-form" accept-charset="UTF-8"> -->
+  <label>Account Holder Type</label>
+  <select autocomplete="off" name="account_holder_type">
+    <option value="individual">Individual</option>
+    <option value="company">Company</option>
+  </select>
 
-DWOLLA DIV BELOW
+  <label for="account_holder_name">Account Holder Name</label>
+  <input id="account_holder_name" type="text" name="account_holder_name">
+
+  <label for="routing_number">Routing Number</label>
+  <input id="routing_number" placeholder="110000000" type="text" name="routing_number">
+
+  <label for="account_number">Account Number</label>
+  <input id="account_number" placeholder="000123456789" type="text" name="account_number">
+
+  <label for="amount">Amount (USD)</label>
+  <input id="amount" placeholder="1000" type="text" name="amount">
+
+  <input name="agree_tos" type="hidden" value="0">
+  <input id="agree_tos" type="checkbox" value="1" name="agree_tos">
+  <label class="medium" for="agree_tos">I authorize to electronically debit my account and, if necessary,<br>electronically credit my account to correct erroneous debits.</label>
+
+  <input type="hidden" name="country" value="us" />
+  <input type="hidden" name="currency" value="usd" />
+
+  <input type="submit" name="commit" value="Okay" class="float-right button primary" data-disable-with="Save ">
+</form>
+
+<script type="text/javascript" src="https://js.stripe.com/v3/"></script>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<script type="text/javascript">
+  var public_key = 'pk_test_2YOIZqgQViMcqNpHxAjt1iSq';
+  var secret_key = 'sk_test_861hUPjcwi4xugctXZruPZEf';
+  var stripe = Stripe( public_key );
+
+  
+  $(function() {
+    $('#ach-payment-form').submit(function(e) {
+      e.preventDefault();
+      var $form = $(this);
+
+      // Must agree to TOS before continuing
+      var $checkbox = $form.find('[name="agree_tos"]:checked');
+      if ($checkbox.length < 1 || $checkbox.val() == false) {
+        window.errorHandler.handle('You must check the box to agree to verify your bank account.');
+        return false;
+      }
+
+      var bankInfo = {
+        routing_number: $form.find('[name="routing_number"]').val(),
+        account_number: $form.find('[name="account_number"]').val(),
+        account_holder_name: $form.find('[name="account_holder_name"]').val(),
+        account_holder_type: $form.find('[name="account_holder_type"]').val(),
+        country: $form.find('[name="country"]').val(),
+        currency: $form.find('[name="currency"]').val()
+      };
+      
+      var plaid_link_handler = Plaid.create({
+        env: 'sandbox',
+        clientName: 'Stripe/Plaid/Sprouts Test',
+        key: '62878a3db427049cad3d889547f2d7',
+        product: ['auth'],
+        selectAccount: true,
+        onSuccess: function( public_token, metadata ){
+          console.log("Plaid #create successful? Pub tok = ", public_token);
+          console.log("Plaid #create succcessful? acct id = ", metadata.account_id); 
+
+          $.post('http://localhost:3000/funding', {
+            public_token: public_token,
+            plaid_account_id: metadata.account_id
+          }); 
+        },
+        onExit:    function( error, metadata ){
+          console.log("Plaid#create encountered error and metadata: " + JSON.stringify(error) + " " + JSON.stringify(metadata)); 
+        }
+      });
+
+
+      // Source token creation.
+      stripe.createSource({
+        type: 'ach_credit_transfer',
+        currency: 'usd',
+        owner: {
+          email: '<%=j @user.email %>' 
+        }
+      }).then(function(resp){
+        // handle result.source 
+      });
+
+      // Bank account token creation.
+      stripe.createToken('bank_account', bankInfo).then(function(result) {
+        console.log("DEBUG: RESULT = ", result);
+        if (result.token) {
+          // result.token is an object that contains a token_id as well as a bank_account object
+          // that will be used to lookup the bank_account later
+          console.log("TESTING AMOUNT RETRIEVAL: ", $form.find('[name="amount"]').val());
+          console.log("TESTING TOKEN OBJECT: ", result.token);
+          $.post('http://localhost:3000/funding_source', {
+            token_id: result.token.id,
+            amount: $form.find('[name="amount"]').val(),
+            bank_account_id: result.token.bank_account.id
+          }); 
+          // Save the data in result.token to your database here
+        } else {
+          // handle result.error here
+          console.log("Error in result object: ", result.error);
+        }
+      });
+    });
+  });
+</script>
+<!-- 
+  <form action="/handle_funding_source" method="POST">
+  <script
+    src="https://checkout.stripe.com/checkout.js" class="stripe-button"
+    data-key='pk_test_2YOIZqgQViMcqNpHxAjt1iSq'
+    data-amount="999"
+    data-name="Demo Site"
+    data-description="Widget"
+    data-image="https://stripe.com/img/documentation/checkout/marketplace.png"
+    data-locale="auto">
+  </script>
+</form>
+-->
+
+<!-- DWOLLA DIV BELOW
 <div id="mainContainer">
   <input type="button" id="start" value="Add Bank">
-</div>
+</div> -->
 
+<!-- 
 IAV CONTAINER DIV BELOW
 <div id="iavContainer"></div>
+-->

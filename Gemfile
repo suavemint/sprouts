@@ -36,6 +36,9 @@ gem 'dwolla_v2'
 # JQuery malarkey
 gem 'jquery-rails'
 
+# Strip malarkey
+gem 'stripe'
+
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
 
