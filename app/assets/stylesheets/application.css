@@ -10,6 +10,15 @@
  * files in this directory. Styles in this file should be added after the last require_* statement.
  * It is generally better to create a new file per style scope.
  *
+ *= require animate.min
+ *= require bootstrap-theme.min
+ *= require bootstrap.min
+ *= require effects
+ *= require font-awesome.min
+ *= require linear-fonts
+ *= require magnific-popup
+ *= require responsive
+ *= require style
  *= require_tree .
  *= require_self
  */

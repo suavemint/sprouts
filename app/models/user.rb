@@ -2,7 +2,8 @@ class User < ApplicationRecord
   has_secure_password
 
   has_many :transactions
-
+  has_many :accounts
+=begin
   def self.dwolla
     @d ||= DwollaV2::Client.new(key: 'RSiQHK9g6X0y2sFQ3fzlqZKRYYnARHL3xDtKbY6Kwf4KMAnu6R', secret: 'Ro5Wyhq9cxxqtjfHTpzIGih0nViVNNBU7wtn6rOaFadvby7pTa') {|cfg| cfg.environment = :sandbox }
   end
@@ -131,4 +132,5 @@ class User < ApplicationRecord
     puts "Customer token retrieved? #{@t}"
     @t
   end
+=end
 end

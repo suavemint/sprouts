@@ -14,4 +14,11 @@
 //= require turbolinks
 //= require jquery
 //= require jquery_ujs
+//= require jquery.min
+//= require jquery.stellar.min
+//= require jquery.mixitup
+//= require jquery.magnific-popup.min
+//= require scripts
+//= require wow.min
+//= require owl.carousel.min
 //= require_tree .

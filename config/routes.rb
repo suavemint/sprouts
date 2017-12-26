@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   get 'logout', to: 'sessions#destroy', as: 'logout'
 
   post 'funding_source', to: 'users#handle_funding_source'
+  post 'plaid', to: 'users#handle_plaid'
 
   #resources :transactions
   resources :users

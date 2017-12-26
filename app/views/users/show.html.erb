@@ -1,64 +1,30 @@
-<head>
-  <%= javascript_include_tag "https://cdn.dwolla.com/1/dwolla.js" %>
+<!--  Need logout link here -->
 
-  <script type="text/javascript">
-/*
-    var iav_error_count = 10;
-    var set_up_iav = function(){
-      var iavToken = '<%=j @user.token%>';
+Good <%= segment_of_day %>, <%= @user.first_name %>.
 
-      console.log(`Testing iav token retrieval in browser: ${iavToken}`);
-
-      dwolla.configure('sandbox');
-      dwolla.iav.start( iavToken, {
-        container: 'iavContainer',
-        stylesheets: [
-          'https://fonts.googleapis.com/css?family=Lato&subset=latin,latin-ext'
-          //'https://localhost:8080/iav/customStylesheets.css'
-        ],
-        microDeposits: 'false',
-      }, function(err, resp){
-        if( err && iavToken > 0 ){
-          console.log("Error: " + JSON.stringify(err)  + ": "  + JSON.stringify(resp));
-          iav_error_count--;
-          set_up_iav();
-        }
-        else {
-          if( iav_error_count >= 0 ){
-            // Success, so save funding source.
-            var funding_source = resp['_links']['funding-source']['href'];
-            console.log("Funding source retrieved is: ", funding_source);
-            // Yuck, but need to put this value on an object Ruby can grab.
-            $('#funding').val( funding_source );
-            iav_error_count = 0;
-          }
-          else {
-            console.log("Not error, but exceeded iav error count, so response = ", resp);
-          }
-        }
-      });
-    };
-
-    $(document).ready(function(){
-        $('#start').click(function(){
-          set_up_iav();
-        });
-    });
-    */
-  </script>
-</head>
-
-<h1>USER SHOW PAGE</h1>
-
-User first name: <%= @user.first_name %>
-User last name: <%= @user.last_name %>
-User email: <%= @user.email %>
-
-Transactions:
-<% @user.transactions.each do |transaction| %>
-  Amount: <%= transaction.amount %>
-  Status: <%= transaction.status %>
-<% end %>
+<h2>Transactions</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Transaction amount</th>
+      <th>Transaction status</th>
+    </tr>
+  </thead>
+  <tbody>
+  <% unless @user.transactions.any? %>
+    <% @user.transactions.each do |transaction| %>
+    <tr>
+      <td>Amount: <%= transaction.amount %></td>
+      <td>Status: <%= transaction.status %></td>
+    </tr>
+    <% end %>
+  <% else %>
+    <tr>
+      <td colspan="2">No transactions yet</td>
+    </tr>
+  <% end %>
+  </tbody>
+</table>
 <br/>
 
 <!-- Once there is a response from the DwollaJS thing, we have a funding source. -->
@@ -70,31 +36,32 @@ Transactions:
     <option value="company">Company</option>
   </select>
 
-  <label for="account_holder_name">Account Holder Name</label>
-  <input id="account_holder_name" type="text" name="account_holder_name">
+  <label for="account_holder_name">Account Holder Name</label><br>
+  <input id="account_holder_name" type="text" name="account_holder_name"><br>
 
-  <label for="routing_number">Routing Number</label>
-  <input id="routing_number" placeholder="110000000" type="text" name="routing_number">
+  <label for="routing_number">Routing Number</label><br>
+  <input id="routing_number" placeholder="110000000" type="text" name="routing_number"><br>
 
-  <label for="account_number">Account Number</label>
-  <input id="account_number" placeholder="000123456789" type="text" name="account_number">
+  <label for="account_number">Account Number</label><br>
+  <input id="account_number" placeholder="000123456789" type="text" name="account_number"><br>
 
-  <label for="amount">Amount (USD)</label>
-  <input id="amount" placeholder="1000" type="text" name="amount">
+  <label for="amount">Amount (USD)</label><br>
+  <input id="amount" placeholder="1000" type="text" name="amount"><br>
 
   <input name="agree_tos" type="hidden" value="0">
   <input id="agree_tos" type="checkbox" value="1" name="agree_tos">
-  <label class="medium" for="agree_tos">I authorize to electronically debit my account and, if necessary,<br>electronically credit my account to correct erroneous debits.</label>
+  <label class="medium" for="agree_tos">I authorize Stripe to electronically debit my account and, if necessary,electronically credit my account to correct erroneous debits.</label>
 
   <input type="hidden" name="country" value="us" />
   <input type="hidden" name="currency" value="usd" />
-
+  <br>
   <input type="submit" name="commit" value="Okay" class="float-right button primary" data-disable-with="Save ">
 </form>
 
 <script type="text/javascript" src="https://js.stripe.com/v3/"></script>
-<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-<script type="text/javascript">
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <script type="text/javascript">
+
   var public_key = 'pk_test_2YOIZqgQViMcqNpHxAjt1iSq';
   var secret_key = 'sk_test_861hUPjcwi4xugctXZruPZEf';
   var stripe = Stripe( public_key );
@@ -120,6 +87,10 @@ Transactions:
         country: $form.find('[name="country"]').val(),
         currency: $form.find('[name="currency"]').val()
       };
+
+      //var amount = parseFloat( $form.find('[name="amount"]').val() );
+      var amount = parseInt( $form.find('[name="amount"]').val() );
+      console.log("Testing amouint retrieval from form: ", amount);
       
       var plaid_link_handler = Plaid.create({
         env: 'sandbox',
@@ -131,47 +102,58 @@ Transactions:
           console.log("Plaid #create successful? Pub tok = ", public_token);
           console.log("Plaid #create succcessful? acct id = ", metadata.account_id); 
 
-          $.post('http://localhost:3000/funding', {
-            public_token: public_token,
-            plaid_account_id: metadata.account_id
+          $.post('http://localhost:3000/plaid', {
+            plaid_public_token: public_token,
+            plaid_account_id: metadata.account_id,
+            amount: amount,
+            user_id: <%= @user.id %>
+          }, function(data){
+            console.log("POST TO PLAID CALLEDE; RESP = ", data); 
+
+          // Source token creation.
+          /*stripe.createSource({
+            type: 'ach_credit_transfer',
+            currency: 'usd',
+            owner: {
+              email: '<%=j @user.email %>' 
+            }
+          }).then(function(resp){
+            console.log("RESPONSE FROM CREATESOURCE: ", resp);
+            // handle result.source 
+          }); */
+
+          // Bank account token creation.
+          /*stripe.createToken('bank_account', bankInfo).then(function(result) {
+            console.log("DEBUG: RESULT = ", result);
+            if (result.token) {
+              // result.token is an object that contains a token_id as well as a bank_account object
+              // that will be used to lookup the bank_account later
+              console.log("TESTING AMOUNT RETRIEVAL: ", $form.find('[name="amount"]').val());
+              console.log("TESTING TOKEN OBJECT: ", result.token);
+              $.post('http://localhost:3000/funding_source', {
+                //token_id: result.token.id,
+                user_id: '<%= @user.id %>',
+                stripe_public_token: result.token.id,
+                amount: $form.find('[name="amount"]').val(),
+                bank_account_id: metadata.account_data
+                //bank_account_id: result.token.bank_account.id
+                //bank_account_id: result.token.id
+              }); 
+              // Save the data in result.token to your database here
+            } else {
+              // handle result.error here
+              console.log("Error in result object: ", result.error);
+            }
+          });*/
           }); 
         },
         onExit:    function( error, metadata ){
           console.log("Plaid#create encountered error and metadata: " + JSON.stringify(error) + " " + JSON.stringify(metadata)); 
         }
       });
-
-
-      // Source token creation.
-      stripe.createSource({
-        type: 'ach_credit_transfer',
-        currency: 'usd',
-        owner: {
-          email: '<%=j @user.email %>' 
-        }
-      }).then(function(resp){
-        // handle result.source 
-      });
-
-      // Bank account token creation.
-      stripe.createToken('bank_account', bankInfo).then(function(result) {
-        console.log("DEBUG: RESULT = ", result);
-        if (result.token) {
-          // result.token is an object that contains a token_id as well as a bank_account object
-          // that will be used to lookup the bank_account later
-          console.log("TESTING AMOUNT RETRIEVAL: ", $form.find('[name="amount"]').val());
-          console.log("TESTING TOKEN OBJECT: ", result.token);
-          $.post('http://localhost:3000/funding_source', {
-            token_id: result.token.id,
-            amount: $form.find('[name="amount"]').val(),
-            bank_account_id: result.token.bank_account.id
-          }); 
-          // Save the data in result.token to your database here
-        } else {
-          // handle result.error here
-          console.log("Error in result object: ", result.error);
-        }
-      });
+      console.log("BEFORE PLAID HANDLER #OPEN");
+      plaid_link_handler.open();
+      console.log("AFTER PLAID HANDLER #OPEN");
     });
   });
 </script>
